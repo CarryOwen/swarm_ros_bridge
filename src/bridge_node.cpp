@@ -28,35 +28,36 @@ template <typename T, int i>
 void sub_cb(const T &msg)
 {
   /* frequency control */
-  ros::Time t_now = ros::Time::now();
-  if ((t_now - sub_t_last[i]).toSec() * sendTopics[i].max_freq < 1.0)
-  {
-    return;
-  }
-  sub_t_last[i] = t_now;
+  std::cout << "sub msg" << std::endl;
+  // ros::Time t_now = ros::Time::now();
+  // if ((t_now - sub_t_last[i]).toSec() * sendTopics[i].max_freq < 1.0)
+  // {
+  //   return;
+  // }
+  // sub_t_last[i] = t_now;
 
-  /* serialize the sending messages into send_buffer */
-  namespace ser = ros::serialization;
-  size_t data_len = ser::serializationLength(msg);             // bytes length of msg
-  std::unique_ptr<uint8_t> send_buffer(new uint8_t[data_len]); // create a dynamic length array
-  ser::OStream stream(send_buffer.get(), data_len);
-  ser::serialize(stream, msg);
+  // /* serialize the sending messages into send_buffer */
+  // namespace ser = ros::serialization;
+  // size_t data_len = ser::serializationLength(msg);             // bytes length of msg
+  // std::unique_ptr<uint8_t> send_buffer(new uint8_t[data_len]); // create a dynamic length array
+  // ser::OStream stream(send_buffer.get(), data_len);
+  // ser::serialize(stream, msg);
 
-  /* zmq send message */
-  zmqpp::message send_array;
-  send_array << data_len;
-  /* equal to:
-    send_array.add_raw(reinterpret_cast<void const*>(&data_len), sizeof(size_t));
-  */
-  send_array.add_raw(reinterpret_cast<void const *>(send_buffer.get()), data_len);
-  std::cout << "ready send!" << std::endl;
-  // send(&, true) for non-blocking, send(&, false) for blocking
-  bool dont_block = false; // Actually for PUB mode zmq socket, send() will never block
-  senders[i]->send(send_array, dont_block);
-  std::cout << "send!" << std::endl;
+  // /* zmq send message */
+  // zmqpp::message send_array;
+  // send_array << data_len;
+  // /* equal to:
+  //   send_array.add_raw(reinterpret_cast<void const*>(&data_len), sizeof(size_t));
+  // */
+  // send_array.add_raw(reinterpret_cast<void const *>(send_buffer.get()), data_len);
+  // std::cout << "ready send!" << std::endl;
+  // // send(&, true) for non-blocking, send(&, false) for blocking
+  // bool dont_block = false; // Actually for PUB mode zmq socket, send() will never block
+  // senders[i]->send(send_array, dont_block);
+  // std::cout << "send!" << std::endl;
 
-  std::cout << msg << std::endl;
-  std::cout << i << std::endl;
+  // std::cout << msg << std::endl;
+  // std::cout << i << std::endl;
 }
 
 /* uniform deserialize and publish the receiving messages */
@@ -270,6 +271,7 @@ int main(int argc, char **argv)
     sub_t_last.emplace_back(ros::Time::now()); // sub_cb called last time
     ros::Subscriber subscriber;
     // The uniform callback function is sub_cb()
+    std::cout << "Ros subscribe topic:" << sendTopics[i].name << std::endl;
     subscriber = topic_subscriber(sendTopics[i].name, sendTopics[i].type, nh, i);
     topic_subs.emplace_back(subscriber);
     // use topic_subs[i].shutdown() to unsubscribe
