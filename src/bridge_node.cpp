@@ -22,28 +22,27 @@
  */
 
 #include "bridge_node.hpp"
-
 /* uniform callback functions for ROS subscribers */
 template <typename T, int i>
 void sub_cb(const T &msg)
 {
   /* frequency control */
-  std::cout << "sub msg" << std::endl;
-  // ros::Time t_now = ros::Time::now();
-  // if ((t_now - sub_t_last[i]).toSec() * sendTopics[i].max_freq < 1.0)
-  // {
-  //   return;
-  // }
-  // sub_t_last[i] = t_now;
+  std::cout << "Got other ROS topic!" << msg << std::endl;
+  ros::Time t_now = ros::Time::now();
+  if ((t_now - sub_t_last[i]).toSec() * sendTopics[i].max_freq < 1.0)
+  {
+    return;
+  }
+  sub_t_last[i] = t_now;
 
-  // /* serialize the sending messages into send_buffer */
+  /* serialize the sending messages into send_buffer */
   // namespace ser = ros::serialization;
   // size_t data_len = ser::serializationLength(msg);             // bytes length of msg
   // std::unique_ptr<uint8_t> send_buffer(new uint8_t[data_len]); // create a dynamic length array
   // ser::OStream stream(send_buffer.get(), data_len);
   // ser::serialize(stream, msg);
 
-  // /* zmq send message */
+  /* zmq send message */
   // zmqpp::message send_array;
   // send_array << data_len;
   // /* equal to:
@@ -53,8 +52,8 @@ void sub_cb(const T &msg)
   // std::cout << "ready send!" << std::endl;
   // // send(&, true) for non-blocking, send(&, false) for blocking
   // bool dont_block = false; // Actually for PUB mode zmq socket, send() will never block
-  // senders[i]->send(send_array, dont_block);
-  // std::cout << "send!" << std::endl;
+  senders[i]->send(zmq::str_buffer("Hello, world"), zmq::send_flags::dontwait);
+  std::cout << "send!" << std::endl;
 
   // std::cout << msg << std::endl;
   // std::cout << i << std::endl;
@@ -78,43 +77,43 @@ void recv_func(int i)
 {
   while (recv_thread_flags[i])
   {
-    /* receive and process message */
-    zmqpp::message recv_array;
-    bool recv_flag; // receive success flag
-    // std::cout << "ready receive!" << std::endl;
-    // receive(&,true) for non-blocking, receive(&,false) for blocking
-    bool dont_block = false; // 'true' leads to high cpu load
-    if (recv_flag = receivers[i]->receive(recv_array, dont_block))
-    {
-      std::cout << "receive:" << recv_array.get(0) << std::endl;
-      size_t data_len;
-      recv_array >> data_len; // unpack meta data
-      // /*  equal to:
-      //   recv_array.get(&data_len, recv_array.read_cursor++);
-      //   void get(T &value, size_t const cursor){
-      //     uint8_t const* byte = static_cast<uint8_t const*>(raw_data(cursor));
-      //     b = *byte;}
-      // */
-      // // a dynamic length array by unique_ptr
-      // std::unique_ptr<uint8_t> recv_buffer(new uint8_t[data_len]);
-      // // continue to copy the raw_data of recv_array into buffer
-      // memcpy(recv_buffer.get(), static_cast<const uint8_t *>(recv_array.raw_data(recv_array.read_cursor())), data_len);
-      // deserialize_publish(recv_buffer.get(), data_len, recvTopics[i].type, i);
+    // /* receive and process message */
+    // zmqpp::message recv_array;
+    // bool recv_flag; // receive success flag
+    // // std::cout << "ready receive!" << std::endl;
+    // // receive(&,true) for non-blocking, receive(&,false) for blocking
+    // bool dont_block = false; // 'true' leads to high cpu load
+    // if (recv_flag = receivers[i]->receive(recv_array, dont_block))
+    // {
+    //   std::cout << "receive:" << recv_array.get(0) << std::endl;
+    //   size_t data_len;
+    //   recv_array >> data_len; // unpack meta data
+    //   // /*  equal to:
+    //   //   recv_array.get(&data_len, recv_array.read_cursor++);
+    //   //   void get(T &value, size_t const cursor){
+    //   //     uint8_t const* byte = static_cast<uint8_t const*>(raw_data(cursor));
+    //   //     b = *byte;}
+    //   // */
+    //   // // a dynamic length array by unique_ptr
+    //   // std::unique_ptr<uint8_t> recv_buffer(new uint8_t[data_len]);
+    //   // // continue to copy the raw_data of recv_array into buffer
+    //   // memcpy(recv_buffer.get(), static_cast<const uint8_t *>(recv_array.raw_data(recv_array.read_cursor())), data_len);
+    //   // deserialize_publish(recv_buffer.get(), data_len, recvTopics[i].type, i);
 
-      // std::cout << data_len << std::endl;
-      // std::cout << recv_buffer.get() << std::endl;
-    }
+    //   // std::cout << data_len << std::endl;
+    //   // std::cout << recv_buffer.get() << std::endl;
+    // }
 
-    /* if receive() does not block, sleep to decrease loop rate */
-    if (dont_block)
-      std::this_thread::sleep_for(std::chrono::microseconds(1000)); // sleep for us
-    else
-    {
-      /* check and report receive state */
-      if (recv_flag != recv_flags_last[i]) // false -> true(first message in)
-        ROS_INFO("[bridge node] \"%s\" received!", recvTopics[i].name.c_str());
-      recv_flags_last[i] = recv_flag;
-    }
+    // /* if receive() does not block, sleep to decrease loop rate */
+    // if (dont_block)
+    //   std::this_thread::sleep_for(std::chrono::microseconds(1000)); // sleep for us
+    // else
+    // {
+    //   /* check and report receive state */
+    //   if (recv_flag != recv_flags_last[i]) // false -> true(first message in)
+    //     ROS_INFO("[bridge node] \"%s\" received!", recvTopics[i].name.c_str());
+    //   recv_flags_last[i] = recv_flag;
+    // }
   }
   return;
 }
@@ -239,15 +238,16 @@ int main(int argc, char **argv)
   // ********************* zmq socket initialize ***************************
   // send sockets (zmq socket PUB mode)
   // 根据topic的个数创建zmq上下文，并绑定到设置的地址和端口，这里创建的是server发布端，用来发布消息给外部进程
-  // std::cout << "-------send topics' info------" << std ::endl;
-  // for (int32_t i = 0; i < len_send; ++i)
-  // {
-  //   const std::string url = "tcp://" + sendTopics[i].ip + ":" + std::to_string(sendTopics[i].port);
-  //   std::cout << "url: " << url << "  topic: " << recvTopics[i].name << std ::endl;
-  //   std::unique_ptr<zmqpp::socket> sender(new zmqpp::socket(context, zmqpp::socket_type::pub));
-  //   sender->bind(url);
-  //   senders.emplace_back(std::move(sender)); // sender is now released by std::move
-  // }
+  std::cout << "-------send topics' info------:" << std ::endl;
+  for (int32_t i = 0; i < len_send; ++i)
+  {
+    std::shared_ptr<zmq2wrapper::Zmq2wpPub> server_pub;
+    const std::string url = "tcp://" + sendTopics[i].ip + ":" + std::to_string(sendTopics[i].port);
+    std::cout << "url: " << url << "  topic: " << sendTopics[i].name << "port: " << sendTopics[i].port << std ::endl;
+    std::unique_ptr<zmq::socket_t> sender(new zmq::socket_t(context, zmq::socket_type::pub));
+    sender->bind(url);
+    senders.emplace_back(std::move(sender)); // sender is now released by std::move
+  }
 
   // receive sockets (zmq socket SUB mode)
   // 根据topic的数量，创建client订阅端,用来订阅外部进程的消息
@@ -257,15 +257,16 @@ int main(int argc, char **argv)
     const std::string url = "tcp://" + recvTopics[i].ip + ":" + std::to_string(recvTopics[i].port);
     std::cout << "url: " << url << "  topic: " << recvTopics[i].name << std::endl;
     std::string const zmq_topic = ""; // "" means all zmq topic
-    std::unique_ptr<zmqpp::socket> receiver(new zmqpp::socket(context, zmqpp::socket_type::sub));
-    receiver->subscribe(recvTopics[i].name.c_str()); // 这个就是类似zmq_setsockopt设置过滤条件
+    std::unique_ptr<zmq::socket_t> receiver(new zmq::socket_t(context, zmq::socket_type::sub));
+    // receiver->subscribe(recvTopics[i].name.c_str()); // 这个就是类似zmq_setsockopt设置过滤条件
+    receiver->setsockopt(ZMQ_SUBSCRIBE,zmq_topic.c_str(),zmq_topic.length());
     receiver->connect(url);
     receivers.emplace_back(std::move(receiver));
   }
 
   // ******************* ROS subscribe and publish *************************
   // ROS topic subsrcibe and send
-  //这里发布的topic是指当前ros系统自己发布的，因此需要先订阅，然后通过zmq再转发给其他的ros或者进程
+  // 这里发布的topic是指当前ros系统自己发布的，因此需要先订阅，然后通过zmq再转发给其他的ros或者进程
   for (int32_t i = 0; i < len_send; ++i)
   {
     sub_t_last.emplace_back(ros::Time::now()); // sub_cb called last time
@@ -289,9 +290,9 @@ int main(int argc, char **argv)
   // ****************** launch receive threads *****************************
   for (int32_t i = 0; i < len_recv; ++i)
   {
-    recv_thread_flags.emplace_back(true); // enable receive thread flags
-    recv_flags_last.emplace_back(false);  // receive success flag
-    recv_threads.emplace_back(std::thread(&recv_func, i)); //启动线程，这里不调用join或者detch的原因是spin也会等待，所以不需要再阻塞主线程了
+    recv_thread_flags.emplace_back(true);                  // enable receive thread flags
+    recv_flags_last.emplace_back(false);                   // receive success flag
+    recv_threads.emplace_back(std::thread(&recv_func, i)); // 启动线程，这里不调用join或者detch的原因是spin也会等待，所以不需要再阻塞主线程了
   }
 
   ros::spin();

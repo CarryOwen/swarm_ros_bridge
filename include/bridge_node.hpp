@@ -25,6 +25,8 @@
 #include <unistd.h>
 #include <string>
 #include <zmqpp/zmqpp.hpp>
+#include "zmq2.hpp"
+#include "zmq_addon.hpp"
 /*
 zmqpp is the c++ wrapper around ZeroMQ
 Intall zmqpp first:
@@ -56,9 +58,12 @@ std::vector<TopicInfo> sendTopics; // send topics info struct vector
 std::vector<TopicInfo> recvTopics; // receive topics info struct vector
 
 // ********************* zmq socket initialize ***************************
-zmqpp::context_t context;
-std::vector<std::unique_ptr<zmqpp::socket>> senders;   //index senders
-std::vector<std::unique_ptr<zmqpp::socket>> receivers; //index receivers
+// zmqpp::context_t context;
+// std::vector<std::unique_ptr<zmqpp::socket>> senders;   //index senders
+// std::vector<std::unique_ptr<zmqpp::socket>> receivers; //index receivers
+zmq::context_t context;
+std::vector<std::unique_ptr<zmq::socket_t>> senders;   // index senders
+std::vector<std::unique_ptr<zmq::socket_t>> receivers; // index receivers
 
 // ******************* ROS subscribe and publish *************************
 std::vector<ros::Time> sub_t_last;
