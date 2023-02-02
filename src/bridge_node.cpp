@@ -36,23 +36,33 @@ void sub_cb(const T &msg)
   sub_t_last[i] = t_now;
 
   /* serialize the sending messages into send_buffer */
-  // namespace ser = ros::serialization;
-  // size_t data_len = ser::serializationLength(msg);             // bytes length of msg
-  // std::unique_ptr<uint8_t> send_buffer(new uint8_t[data_len]); // create a dynamic length array
-  // ser::OStream stream(send_buffer.get(), data_len);
-  // ser::serialize(stream, msg);
-
+  namespace ser = ros::serialization;
+  size_t data_len = ser::serializationLength(msg);             // bytes length of msg
+  std::cout << "msg lengh:" << data_len << std::endl;
+  std::unique_ptr<uint8_t> send_buffer(new uint8_t[data_len]); // create a dynamic length array
+  ser::OStream stream(send_buffer.get(), data_len);
+  ser::serialize(stream, msg);
   /* zmq send message */
   // zmqpp::message send_array;
-  // send_array << data_len;
   // /* equal to:
   //   send_array.add_raw(reinterpret_cast<void const*>(&data_len), sizeof(size_t));
   // */
-  // send_array.add_raw(reinterpret_cast<void const *>(send_buffer.get()), data_len);
-  // std::cout << "ready send!" << std::endl;
+   zmqpp::message send_array;
+  send_array << data_len;
+  /* equal to:
+    send_array.add_raw(reinterpret_cast<void const*>(&data_len), sizeof(size_t));
+  */
+  send_array.add_raw(reinterpret_cast<void const *>(send_buffer.get()), data_len);
+
+  //get(1)可以获取到数据
+  std::cout << "msg::" << send_array.get(1) << std::endl;
+
+  std::cout << "ready send!" << std::endl;
   // // send(&, true) for non-blocking, send(&, false) for blocking
   // bool dont_block = false; // Actually for PUB mode zmq socket, send() will never block
-  senders[i]->send(zmq::str_buffer("Hello, world"), zmq::send_flags::dontwait);
+  zmq::message_t msg_t;
+  msg_t.rebuild(send_array.get(1).data(), send_array.get(1).size());
+  senders[i]->send(msg_t, zmq::send_flags::dontwait);
   std::cout << "send!" << std::endl;
 
   // std::cout << msg << std::endl;
