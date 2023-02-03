@@ -22,7 +22,7 @@
  */
 
 #include "bridge_node.hpp"
-
+#include <sstream>
 /* uniform callback functions for ROS subscribers */
 template <typename T, int i>
 void sub_cb(const T &msg)
@@ -65,12 +65,19 @@ template <typename T>
 void deserialize_pub(uint8_t *buffer_ptr, size_t msg_size, int i)
 {
   T msg;
-  // deserialize the receiving messages into ROS msg
-  namespace ser = ros::serialization;
-  ser::IStream stream(buffer_ptr, msg_size);
-  ser::deserialize(stream, msg);
-  // publish ROS msg
-  topic_pubs[i].publish(msg);
+  std::stringstream ss;
+  ss << "hello world " ;
+  msg.data = ss.str();
+  // 实例化消息msg, 定义字符串流“hello world”并赋值给ss, 最后转成为字符串赋值给 msg.data
+
+  topic_pubs[i].publish(msg);         // 发布msg
+  // T msg;
+  // // deserialize the receiving messages into ROS msg
+  // namespace ser = ros::serialization;
+  // ser::IStream stream(buffer_ptr, msg_size);
+  // ser::deserialize(stream, msg);
+  // // publish ROS msg
+  // topic_pubs[i].publish(msg);
 }
 
 /* receive thread function to receive messages through ZMQ  and publish them through ROS */
@@ -81,28 +88,27 @@ void recv_func(int i)
     /* receive and process message */
     zmqpp::message recv_array;
     bool recv_flag; // receive success flag
-    // std::cout << "ready receive!" << std::endl;
+    std::cout << "ready receive!" << std::endl;
     // receive(&,true) for non-blocking, receive(&,false) for blocking
     bool dont_block = false; // 'true' leads to high cpu load
     if (recv_flag = receivers[i]->receive(recv_array, dont_block))
     {
+      std::cout << "Topic: " << recvTopics[i].name << "  Type:" << recvTopics[i].type << std::endl;
       std::cout << "receive:" << recv_array.get(0) << std::endl;
-      size_t data_len;
-      recv_array >> data_len; // unpack meta data
-      // /*  equal to:
-      //   recv_array.get(&data_len, recv_array.read_cursor++);
-      //   void get(T &value, size_t const cursor){
-      //     uint8_t const* byte = static_cast<uint8_t const*>(raw_data(cursor));
-      //     b = *byte;}
-      // */
-      // // a dynamic length array by unique_ptr
-      // std::unique_ptr<uint8_t> recv_buffer(new uint8_t[data_len]);
-      // // continue to copy the raw_data of recv_array into buffer
-      // memcpy(recv_buffer.get(), static_cast<const uint8_t *>(recv_array.raw_data(recv_array.read_cursor())), data_len);
-      // deserialize_publish(recv_buffer.get(), data_len, recvTopics[i].type, i);
 
-      // std::cout << data_len << std::endl;
-      // std::cout << recv_buffer.get() << std::endl;
+      size_t data_len;
+      // recv_array >> data_len; // unpack meta data
+      data_len = recv_array.get(0).size();
+      std::cout << "msg len:" << data_len << std::endl;
+      // a dynamic length array by unique_ptr
+      std::unique_ptr<uint8_t> recv_buffer(new uint8_t[data_len]);
+      // continue to copy the raw_data of recv_array into buffer
+      memcpy(recv_buffer.get(), static_cast<const uint8_t *>(recv_array.raw_data(recv_array.read_cursor())), data_len);
+      std::cout << "-----recv_buffer:" << recv_buffer.get() << " data_len:" << data_len << " type:" << recvTopics[i].type << " Index:" << i << "-----" << std::endl;
+      deserialize_publish(recv_buffer.get(), data_len, recvTopics[i].type, i);
+
+      std::cout << data_len << std::endl;
+      std::cout << recv_buffer.get() << std::endl;
     }
 
     /* if receive() does not block, sleep to decrease loop rate */
@@ -258,7 +264,7 @@ int main(int argc, char **argv)
     std::cout << "url: " << url << "  topic: " << recvTopics[i].name << std::endl;
     std::string const zmq_topic = ""; // "" means all zmq topic
     std::unique_ptr<zmqpp::socket> receiver(new zmqpp::socket(context, zmqpp::socket_type::sub));
-    receiver->subscribe(recvTopics[i].name.c_str()); // 这个就是类似zmq_setsockopt设置过滤条件
+    receiver->subscribe(zmq_topic); // 这个就是类似zmq_setsockopt设置过滤条件
     receiver->connect(url);
     receivers.emplace_back(std::move(receiver));
   }
