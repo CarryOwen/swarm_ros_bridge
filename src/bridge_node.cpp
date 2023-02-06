@@ -64,22 +64,35 @@ void sub_cb(const T &msg)
 template <typename T>
 void deserialize_pub(uint8_t *buffer_ptr, size_t msg_size, int i)
 {
-  T msg;
-  std::stringstream ss;
-  ss << "hello world " ;
-  msg.data = ss.str();
-  // 实例化消息msg, 定义字符串流“hello world”并赋值给ss, 最后转成为字符串赋值给 msg.data
+  // std_msgs::String msg;
+  // std::stringstream ss;
+  // ss << "hello world " ;
+  // msg.data = ss.str();
+  // // 实例化消息msg, 定义字符串流“hello world”并赋值给ss, 最后转成为字符串赋值给 msg.data
 
-  topic_pubs[i].publish(msg);         // 发布msg
-  // T msg;
-  // // deserialize the receiving messages into ROS msg
-  // namespace ser = ros::serialization;
-  // ser::IStream stream(buffer_ptr, msg_size);
+  // topic_pubs[i].publish(msg);         // 发布msg
+  std::shared_ptr<uint8_t> buffer(new uint8_t[msg_size]);
+  T msg;
+  // deserialize the receiving messages into ROS msg
+  namespace ser = ros::serialization;
+  ser::IStream stream(buffer.get(), msg_size);
+  std::cout << "stream1" << std::endl;
   // ser::deserialize(stream, msg);
+  std::cout << "stream2" << std::endl;
   // // publish ROS msg
-  // topic_pubs[i].publish(msg);
+  topic_pubs[i].publish(msg);
 }
 
+void deserialize_pub_std_msg(uint8_t *buffer_ptr, size_t msg_size, int i)
+{
+  std::cout << "Received:";
+  printf("%s\n", buffer_ptr);
+  std_msgs::String msg;
+  std::string tmp((char *)buffer_ptr);
+  msg.data = tmp;
+  // std::cout << "msg.data:" << msg.data << std::endl;
+  topic_pubs[i].publish(msg);
+}
 /* receive thread function to receive messages through ZMQ  and publish them through ROS */
 void recv_func(int i)
 {
@@ -88,27 +101,27 @@ void recv_func(int i)
     /* receive and process message */
     zmqpp::message recv_array;
     bool recv_flag; // receive success flag
-    std::cout << "ready receive!" << std::endl;
+    // std::cout << "ready receive!" << std::endl;
     // receive(&,true) for non-blocking, receive(&,false) for blocking
     bool dont_block = false; // 'true' leads to high cpu load
     if (recv_flag = receivers[i]->receive(recv_array, dont_block))
     {
-      std::cout << "Topic: " << recvTopics[i].name << "  Type:" << recvTopics[i].type << std::endl;
-      std::cout << "receive:" << recv_array.get(0) << std::endl;
+      // std::cout << "Topic: " << recvTopics[i].name << "  Type:" << recvTopics[i].type << std::endl;
+      // std::cout << "receive:" << recv_array.get(0) << std::endl;
 
       size_t data_len;
       // recv_array >> data_len; // unpack meta data
       data_len = recv_array.get(0).size();
-      std::cout << "msg len:" << data_len << std::endl;
+      // std::cout << "msg len:" << data_len << std::endl;
       // a dynamic length array by unique_ptr
       std::unique_ptr<uint8_t> recv_buffer(new uint8_t[data_len]);
       // continue to copy the raw_data of recv_array into buffer
       memcpy(recv_buffer.get(), static_cast<const uint8_t *>(recv_array.raw_data(recv_array.read_cursor())), data_len);
-      std::cout << "-----recv_buffer:" << recv_buffer.get() << " data_len:" << data_len << " type:" << recvTopics[i].type << " Index:" << i << "-----" << std::endl;
+      std::cout << "-----recv_buffer:" << recv_buffer.get() << " data_len:" << data_len << " type:" << recvTopics[i].type << " Index:" << i << " Topic:" << recvTopics[i].name << "-----" << std::endl;
       deserialize_publish(recv_buffer.get(), data_len, recvTopics[i].type, i);
 
-      std::cout << data_len << std::endl;
-      std::cout << recv_buffer.get() << std::endl;
+      // std::cout << data_len << std::endl;
+      // std::cout << recv_buffer.get() << std::endl;
     }
 
     /* if receive() does not block, sleep to decrease loop rate */
