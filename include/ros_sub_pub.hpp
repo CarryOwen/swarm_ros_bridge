@@ -51,6 +51,27 @@
 
 #define SUB_MAX 50 // max number of subscriber callbacks
 
+/// @brief To compare two type is name or not
+/// @tparam T1 
+/// @tparam T2 
+/// @return bool same return true otherwise return false
+template<typename T1, typename T2>
+struct is__same
+{
+	operator bool()
+	{
+		return false;
+	}
+};
+template<typename T1>
+struct is__same<T1, T1>
+{
+	operator bool()
+	{
+		return true;
+	}
+};
+
 template <typename T, int i>
 void sub_cb(const T &msg);
 
@@ -63,8 +84,6 @@ ros::Subscriber nh_sub(std::string topic_name, ros::NodeHandle nh, int i);
 ros::Subscriber topic_subscriber(std::string topic_name, std::string msg_type, ros::NodeHandle nh, int i);
 
 ros::Publisher topic_publisher(std::string topic_name, std::string msg_type, ros::NodeHandle nh);
-
-void deserialize_pub_std_msg(uint8_t *buffer_ptr, size_t msg_size, int i);
 
 template <typename T>
 void deserialize_pub(uint8_t *buffer_ptr, size_t msg_size, int i);
@@ -195,8 +214,7 @@ void deserialize_publish(uint8_t *buffer_ptr, size_t msg_size, std::string msg_t
 #endif
 #ifdef MSG_TYPE3
   if (msg_type == MSG_TYPE3)
-    // return deserialize_pub<MSG_CLASS3>(buffer_ptr, msg_size, i);
-    return deserialize_pub_std_msg(buffer_ptr, msg_size, i);
+    return deserialize_pub<MSG_CLASS3>(buffer_ptr, msg_size, i);
 #endif
 #ifdef MSG_TYPE4
   if (msg_type == MSG_TYPE4)
